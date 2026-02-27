@@ -266,9 +266,7 @@ BallTile:
   .db %01111110,0,0,0
   .db %00111100,0,0,0
 
-; Pad to SMS header location ($7FF0)
-.ds $7FF0-*
-
+; Jump directly to SMS header location ($7FF0).
 .org $7FF0
   .db "TMR SEGA"
   .db 0,0
