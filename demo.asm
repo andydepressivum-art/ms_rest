@@ -151,9 +151,9 @@ LoadBallTile:
   ret
 
 ClearNameTable:
-  ld a, <$7800|$4000
+  ld a, <($7800|$4000)
   out (VDP_CTRL), a
-  ld a, >$7800|$4000
+  ld a, >($7800|$4000)
   out (VDP_CTRL), a
 
   xor a
@@ -220,9 +220,9 @@ UpdateBall:
 ; ------------------------------------------------------------
 UpdateSprite:
   ; Y for sprite 0
-  ld a, <$3F00|$4000
+  ld a, <($3F00|$4000)
   out (VDP_CTRL), a
-  ld a, >$3F00|$4000
+  ld a, >($3F00|$4000)
   out (VDP_CTRL), a
 
   ld a, (ball_y)
@@ -231,9 +231,9 @@ UpdateSprite:
   out (VDP_DATA), a
 
   ; X + tile index for sprite 0
-  ld a, <$3F80|$4000
+  ld a, <($3F80|$4000)
   out (VDP_CTRL), a
-  ld a, >$3F80|$4000
+  ld a, >($3F80|$4000)
   out (VDP_CTRL), a
 
   ld a, (ball_x)
