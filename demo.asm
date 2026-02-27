@@ -39,20 +39,20 @@
 .define SAT_Y_CMD_L   $00
 
 .enum $C000
-  vblank_flag   db
-  frame_div     db
-  direction     db
-  snake_len     db
-  score         db
-  food_x        db
-  food_y        db
-  rand_seed     db
-  head_old_x    db
-  head_old_y    db
-  tail_old_x    db
-  tail_old_y    db
-  new_head_x    db
-  new_head_y    db
+  vblank_flag   dsb 1
+  frame_div     dsb 1
+  direction     dsb 1
+  snake_len     dsb 1
+  score         dsb 1
+  food_x        dsb 1
+  food_y        dsb 1
+  rand_seed     dsb 1
+  head_old_x    dsb 1
+  head_old_y    dsb 1
+  tail_old_x    dsb 1
+  tail_old_y    dsb 1
+  new_head_x    dsb 1
+  new_head_y    dsb 1
   snake_x       dsb 64
   snake_y       dsb 64
 .ende
@@ -93,6 +93,7 @@ Start:
   call SpawnFood
   call DrawFood
   call DrawScore
+  call EnableDisplay
 
   ei
 MainLoop:
@@ -121,10 +122,10 @@ VBlankIRQ:
 
 WaitVBlank:
   halt
-.wv:
+WaitVBlank_Loop:
   ld a, (vblank_flag)
   or a
-  jr z, .wv
+  jr z, WaitVBlank_Loop
   xor a
   ld (vblank_flag), a
   ret
@@ -133,7 +134,7 @@ InitVDP:
   ld hl, VDPRegs
   ld b, 11
   ld c, 0
-.ivl:
+InitVDP_Loop:
   ld a, (hl)
   out (VDP_CTRL), a
   ld a, c
@@ -141,7 +142,14 @@ InitVDP:
   out (VDP_CTRL), a
   inc hl
   inc c
-  djnz .ivl
+  djnz InitVDP_Loop
+  ret
+
+EnableDisplay:
+  ld a, $E0
+  out (VDP_CTRL), a
+  ld a, $81
+  out (VDP_CTRL), a
   ret
 
 ClearSprites:
@@ -182,9 +190,9 @@ LoadPalette:
   ; rest black
   ld b, 26
   xor a
-.lpc:
+LoadPalette_ClearLoop:
   out (VDP_DATA), a
-  djnz .lpc
+  djnz LoadPalette_ClearLoop
   ret
 
 LoadTiles:
@@ -196,14 +204,14 @@ LoadTiles:
 
   ld hl, TileData
   ld bc, TileDataEnd-TileData
-.ltl:
+LoadTiles_Loop:
   ld a, (hl)
   out (VDP_DATA), a
   inc hl
   dec bc
   ld a, b
   or c
-  jr nz, .ltl
+  jr nz, LoadTiles_Loop
   ret
 
 ClearNameTable:
@@ -214,18 +222,18 @@ ClearNameTable:
 
   xor a
   ld bc, 1792
-.cnt:
+ClearNameTable_Loop:
   out (VDP_DATA), a
   dec bc
   ld a, b
   or c
-  jr nz, .cnt
+  jr nz, ClearNameTable_Loop
   ret
 
 DrawBorder:
   ; top and bottom
   ld b, 0
-.dbx:
+DrawBorder_XLoop:
   ld c, 2
   ld a, TILE_WALL
   call PutTile
@@ -235,11 +243,11 @@ DrawBorder:
   inc b
   ld a, b
   cp 32
-  jr c, .dbx
+  jr c, DrawBorder_XLoop
 
   ; left and right
   ld c, 3
-.dby:
+DrawBorder_YLoop:
   ld b, 0
   ld a, TILE_WALL
   call PutTile
@@ -249,7 +257,7 @@ DrawBorder:
   inc c
   ld a, c
   cp 23
-  jr c, .dby
+  jr c, DrawBorder_YLoop
   ret
 
 InitSnake:
@@ -294,43 +302,43 @@ ReadInput:
   in a, (JOY_PORT)
 
   bit 3, a
-  jr nz, .noRight
+  jr nz, ReadInput_NoRight
   ld a, (direction)
   cp DIR_LEFT
-  jr z, .noRight
+  jr z, ReadInput_NoRight
   ld a, DIR_RIGHT
   ld (direction), a
   ret
-.noRight:
+ReadInput_NoRight:
   in a, (JOY_PORT)
   bit 2, a
-  jr nz, .noLeft
+  jr nz, ReadInput_NoLeft
   ld a, (direction)
   cp DIR_RIGHT
-  jr z, .noLeft
+  jr z, ReadInput_NoLeft
   ld a, DIR_LEFT
   ld (direction), a
   ret
-.noLeft:
+ReadInput_NoLeft:
   in a, (JOY_PORT)
   bit 0, a
-  jr nz, .noUp
+  jr nz, ReadInput_NoUp
   ld a, (direction)
   cp DIR_DOWN
-  jr z, .noUp
+  jr z, ReadInput_NoUp
   ld a, DIR_UP
   ld (direction), a
   ret
-.noUp:
+ReadInput_NoUp:
   in a, (JOY_PORT)
   bit 1, a
-  jr nz, .done
+  jr nz, ReadInput_Done
   ld a, (direction)
   cp DIR_UP
-  jr z, .done
+  jr z, ReadInput_Done
   ld a, DIR_DOWN
   ld (direction), a
-.done:
+ReadInput_Done:
   ret
 
 SnakeStep:
@@ -361,23 +369,23 @@ SnakeStep:
   ld c, a
   ld a, (direction)
   cp DIR_RIGHT
-  jr nz, .chkL
+  jr nz, SnakeStep_CheckLeft
   inc b
-  jr .moved
-.chkL:
+  jr SnakeStep_Moved
+SnakeStep_CheckLeft:
   cp DIR_LEFT
-  jr nz, .chkU
+  jr nz, SnakeStep_CheckUp
   dec b
-  jr .moved
-.chkU:
+  jr SnakeStep_Moved
+SnakeStep_CheckUp:
   cp DIR_UP
-  jr nz, .goD
+  jr nz, SnakeStep_GoDown
   dec c
-  jr .moved
-.goD:
+  jr SnakeStep_Moved
+SnakeStep_GoDown:
   inc c
 
-.moved:
+SnakeStep_Moved:
   ; wall collision
   ld a, b
   cp PLAY_MIN_X
@@ -400,39 +408,39 @@ SnakeStep:
   ld b, a
   ld hl, snake_x
   ld de, snake_y
-.bcl:
+SnakeStep_BodyLoop:
   ld a, b
   or a
-  jr z, .shift
+  jr z, SnakeStep_Shift
   ld a, (hl)
   ld c, a
   ld a, (new_head_x)
   cp c
-  jr nz, .bcnext
+  jr nz, SnakeStep_BodyNext
   ld a, (de)
   ld c, a
   ld a, (new_head_y)
   cp c
   jp z, ResetGame
-.bcnext:
+SnakeStep_BodyNext:
   inc hl
   inc de
   dec b
-  jr .bcl
+  jr SnakeStep_BodyLoop
 
   ld a, (new_head_x)
   ld b, a
   ld a, (new_head_y)
   ld c, a
-.shift:
+SnakeStep_Shift:
   ; shift tail towards end
   ld a, (snake_len)
   dec a
   ld e, a
-.sloop:
+SnakeStep_ShiftLoop:
   ld a, e
   or a
-  jr z, .storeHead
+  jr z, SnakeStep_StoreHead
 
   ld d, 0
   ld hl, snake_x
@@ -450,9 +458,9 @@ SnakeStep:
   ld (hl), a
 
   dec e
-  jr .sloop
+  jr SnakeStep_ShiftLoop
 
-.storeHead:
+SnakeStep_StoreHead:
   ld a, b
   ld (snake_x), a
   ld a, c
@@ -461,26 +469,29 @@ SnakeStep:
   ; food check
   ld a, (food_x)
   cp b
-  jr nz, .noFood
+  jr nz, SnakeStep_NoFood
   ld a, (food_y)
   cp c
-  jr nz, .noFood
+  jr nz, SnakeStep_NoFood
 
   ld a, (snake_len)
   cp 63
-  jr nc, .lenMax
+  jr nc, SnakeStep_LenMax
   inc a
   ld (snake_len), a
-.lenMax:
+SnakeStep_LenMax:
   ld a, (score)
+  cp 99
+  jr z, SnakeStep_ScoreKeep
   inc a
   ld (score), a
+SnakeStep_ScoreKeep:
   call DrawScore
   call SpawnFood
   call DrawFood
-  jr .drawNew
+  jr SnakeStep_DrawNew
 
-.noFood:
+SnakeStep_NoFood:
   ; erase old tail
   ld a, (tail_old_x)
   ld b, a
@@ -489,7 +500,7 @@ SnakeStep:
   ld a, TILE_EMPTY
   call PutTile
 
-.drawNew:
+SnakeStep_DrawNew:
   ; old head becomes body
   ld a, (head_old_x)
   ld b, a
@@ -519,21 +530,21 @@ ResetGame:
   ret
 
 SpawnFood:
-.sfTry:
+SpawnFood_Try:
   call NextRandom
   and $1F
   cp PLAY_MIN_X
-  jr c, .sfTry
+  jr c, SpawnFood_Try
   cp PLAY_MAX_X+1
-  jr nc, .sfTry
+  jr nc, SpawnFood_Try
   ld b, a
 
   call NextRandom
   and $1F
   cp PLAY_MIN_Y
-  jr c, .sfTry
+  jr c, SpawnFood_Try
   cp PLAY_MAX_Y+1
-  jr nc, .sfTry
+  jr nc, SpawnFood_Try
   ld c, a
 
   ; avoid snake cells
@@ -546,27 +557,27 @@ SpawnFood:
   ld b, a
   ld hl, snake_x
   ld de, snake_y
-.sfChk:
+SpawnFood_CheckLoop:
   ld a, b
   or a
-  jr z, .ok
+  jr z, SpawnFood_Ok
   ld a, (hl)
   ld c, a
   ld a, (new_head_x)
   cp c
-  jr nz, .next
+  jr nz, SpawnFood_Next
   ld a, (de)
   ld c, a
   ld a, (new_head_y)
   cp c
-  jr z, .sfTry
-.next:
+  jr z, SpawnFood_Try
+SpawnFood_Next:
   inc hl
   inc de
   dec b
-  jr .sfChk
+  jr SpawnFood_CheckLoop
 
-.ok:
+SpawnFood_Ok:
   ld a, (new_head_x)
   ld (food_x), a
   ld a, (new_head_y)
@@ -586,13 +597,13 @@ DrawScore:
   ; row 0, col 0/1 show decimal score (00..99)
   ld a, (score)
   ld e, 0
-.ds10:
+DrawScore_Sub10Loop:
   cp 10
-  jr c, .dones10
+  jr c, ReadInput_Dones10
   sub 10
   inc e
-  jr .ds10
-.dones10:
+  jr DrawScore_Sub10Loop
+DrawScore_DoneSub10:
   ; A=ones, E=tens
   push af
   ld a, e
@@ -653,6 +664,13 @@ PutTile:
   pop af
 
   out (VDP_DATA), a
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
+  nop
   xor a
   out (VDP_DATA), a
   ret
@@ -660,15 +678,15 @@ PutTile:
 NextRandom:
   ld a, (rand_seed)
   add a, a
-  jr nc, .nr0
+  jr nc, NextRandom_NoXor
   xor $1D
-.nr0:
+NextRandom_NoXor:
   ld (rand_seed), a
   ret
 
 VDPRegs:
   .db $04 ; R0 mode
-  .db $E0 ; R1 display on + VBlank IRQ
+  .db $A0 ; R1 display off + VBlank IRQ enabled
   .db $0E ; R2 name table at $3800
   .db $FF ; R3 unused in mode 4
   .db $FF ; R4 unused in mode 4
@@ -824,7 +842,6 @@ Digit9:
 TileDataEnd:
 
 .org $7FF0
+  ; SMS header: exactly 16 bytes ($7FF0-$7FFF)
   .db "TMR SEGA"
-  .db 0,0
-  .db 0,0
-  .db $4C, $00, $00, $00, $00, $00
+  .db $00,$00,$00,$00,$00,$00,$4C,$00
