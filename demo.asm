@@ -599,7 +599,7 @@ DrawScore:
   ld e, 0
 DrawScore_Sub10Loop:
   cp 10
-  jr c, ReadInput_Dones10
+  jr c, DrawScore_DoneSub10
   sub 10
   inc e
   jr DrawScore_Sub10Loop
